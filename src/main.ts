@@ -8,7 +8,7 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:3000'], // your frontend URL
+    origin: ['http://localhost:3000', 'https://rbac-system-nestjs.vercel.app'], // your frontend URL
     credentials: true,
   });
 
