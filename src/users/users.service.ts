@@ -23,6 +23,7 @@ type SafeUser = {
   id: string;
   email: string;
   roleId: string;
+  roleName: RoleName | null;
   managerId: string | null;
   status: UserStatus;
 };
@@ -59,7 +60,22 @@ export class UsersService {
       .find(query)
       .sort({ createdAt: -1 })
       .exec();
-    return users.map((user) => this.toSafeUser(user));
+
+    const roleIds = Array.from(
+      new Set(users.map((user) => user.roleId.toString())),
+    );
+    const roles = await this.roleModel
+      .find({ _id: { $in: roleIds.map((id) => new Types.ObjectId(id)) } })
+      .lean()
+      .exec();
+
+    const roleNameById = new Map(
+      roles.map((role) => [role._id.toString(), role.name as RoleName]),
+    );
+
+    return users.map((user) =>
+      this.toSafeUser(user, roleNameById.get(user.roleId.toString()) ?? null),
+    );
   }
 
   async createUser(actorUserId: string, dto: CreateUserDto): Promise<SafeUser> {
@@ -93,7 +109,7 @@ export class UsersService {
         status: UserStatus.ACTIVE,
       });
 
-      return this.toSafeUser(created);
+      return this.toSafeUser(created, role.name);
     } catch (error: unknown) {
       if (this.isDuplicateKeyError(error)) {
         throw new ConflictException('Email already exists.');
@@ -111,7 +127,8 @@ export class UsersService {
 
     this.assertWithinScope(actor, actorUserId, target);
 
-    return this.toSafeUser(target);
+    const roleName = await this.getRoleNameById(target.roleId);
+    return this.toSafeUser(target, roleName);
   }
 
   async updateUser(
@@ -166,7 +183,8 @@ export class UsersService {
 
     try {
       const saved = await target.save();
-      return this.toSafeUser(saved);
+      const roleName = await this.getRoleNameById(saved.roleId);
+      return this.toSafeUser(saved, roleName);
     } catch (error: unknown) {
       if (this.isDuplicateKeyError(error)) {
         throw new ConflictException('Email already exists.');
@@ -196,7 +214,8 @@ export class UsersService {
 
     target.status = dto.status;
     const saved = await target.save();
-    return this.toSafeUser(saved);
+    const roleName = await this.getRoleNameById(saved.roleId);
+    return this.toSafeUser(saved, roleName);
   }
 
   private async getActorContext(actorUserId: string): Promise<ActorContext> {
@@ -250,11 +269,19 @@ export class UsersService {
     }
   }
 
-  private toSafeUser(user: UserDocument): SafeUser {
+  private async getRoleNameById(
+    roleId: Types.ObjectId,
+  ): Promise<RoleName | null> {
+    const role = await this.roleModel.findById(roleId).lean().exec();
+    return role?.name ?? null;
+  }
+
+  private toSafeUser(user: UserDocument, roleName: RoleName | null): SafeUser {
     return {
       id: user._id.toString(),
       email: user.email,
       roleId: user.roleId.toString(),
+      roleName,
       managerId: user.managerId ? user.managerId.toString() : null,
       status: user.status,
     };

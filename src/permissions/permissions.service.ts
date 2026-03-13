@@ -47,6 +47,19 @@ export class PermissionsService {
     return this.permissionResolverService.resolveForUser(targetUserId);
   }
 
+  async getMyResolvedPermissions(userId: string): Promise<string[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user id.');
+    }
+
+    const user = await this.userModel.findById(userId).lean().exec();
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    return this.permissionResolverService.resolveForUser(userId);
+  }
+
   async setUserPermissionOverrides(
     actorUserId: string,
     targetUserId: string,

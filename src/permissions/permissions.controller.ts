@@ -26,6 +26,23 @@ export class PermissionsController {
     return this.permissionsService.listPermissions();
   }
 
+  @Get('me/permissions')
+  @ResponseMessage('Current user permissions fetched successfully.')
+  async getMyResolvedPermissions(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<{ permissions: string[] }> {
+    const actorUserId = request.auth?.userId;
+    if (!actorUserId) {
+      throw new ForbiddenException(
+        'User context unavailable for permission lookup.',
+      );
+    }
+
+    const permissions =
+      await this.permissionsService.getMyResolvedPermissions(actorUserId);
+    return { permissions };
+  }
+
   @Get('users/:id/permissions')
   @RequirePermission('manage:permissions')
   @ResponseMessage('User permissions fetched successfully.')

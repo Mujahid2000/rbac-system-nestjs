@@ -24,7 +24,7 @@ export class RefreshTokenBlacklist {
   })
   userId?: Types.ObjectId;
 
-  @Prop({ type: Date, required: true, index: true })
+  @Prop({ type: Date, required: true })
   expiresAt?: Date;
 }
 
